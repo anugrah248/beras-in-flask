@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify
 from tensorflow.keras.utils import load_img, img_to_array
 import numpy as np
 import os
-# import io
+from io import BytesIO
 from tensorflow.keras.models import load_model
 from flask_cors import CORS
-# import torchvision.transforms as T
+from PIL import Image
+# import io
 # from PIL import Image, ImageDraw, ImageFont
+# import torchvision.transforms as T
 # import torch
 # from collections import Counter
 # import base64
@@ -40,17 +42,19 @@ def predict():
         if image_file.filename == '':
             return jsonify({"error": "Nama file tidak valid"})
 
-        img_path = os.path.join("uploads", image_file.filename)  
-        image_file.save(img_path)
+        try:
+            img = Image.open(BytesIO(image_file.read()))
+        except UnidentifiedImageError:
+            return jsonify({"error": "File yang diunggah bukan gambar yang valid"})
 
-        img = load_img(img_path, target_size=(img_width, img_height)) 
-        img_array = img_to_array(img)  
+        img = img.resize((img_width, img_height))
+        img_array = img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
 
-        img_array /= 255.0 
+        img_array /= 255.0
 
         probs = cnn_model.predict(img_array)
-        probs = np.clip(probs, 0, 1)  
+        probs = np.clip(probs, 0, 1)
         percent = probs * 100
 
         high = np.argmax(probs)
@@ -58,8 +62,8 @@ def predict():
         accuracy = np.round(percent[0, high], 2)
 
         return jsonify({
-            "label": label
-            # "accuracy": float(accuracy) 
+            "label": label,
+            "accuracy": float(accuracy)
         })
 
     except Exception as e:
@@ -83,10 +87,10 @@ def predict():
 #     predictions = [{k: v.to("cpu") for k, v in pred.items()} for pred in predictions]
     
 #     boxes = predictions[0]["boxes"][predictions[0]["scores"] > threshold].numpy()
-    scores = predictions[0]["scores"][predictions[0]["scores"] > threshold].numpy()
-    labels = predictions[0]["labels"][predictions[0]["scores"] > threshold].numpy()
-    # 
-    class_counts = Counter(labels)
+    # scores = predictions[0]["scores"][predictions[0]["scores"] > threshold].numpy()
+    # labels = predictions[0]["labels"][predictions[0]["scores"] > threshold].numpy()
+    # # 
+    # class_counts = Counter(labels)
     
 #     class_0_count = class_counts.get(0, 0)
 #     class_1_count = class_counts.get(1, 0)
